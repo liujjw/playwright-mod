@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import captcha from './tools/captcha';
 import common from './tools/common';
 import console from './tools/console';
 import dialogs from './tools/dialogs';
@@ -37,6 +38,7 @@ import type { Tool } from './tools/tool';
 import type { FullConfig } from './config';
 
 export const browserTools: Tool<any>[] = [
+  ...captcha,
   ...common,
   ...console,
   ...dialogs,
