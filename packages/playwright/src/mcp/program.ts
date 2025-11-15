@@ -70,6 +70,7 @@ export function decorateCommand(command: Command, version: string) {
       .option('--user-agent <ua string>', 'specify user agent string')
       .option('--user-data-dir <path>', 'path to the user data directory. If not specified, a temporary directory will be created.')
       .option('--viewport-size <size>', 'specify browser viewport size in pixels, for example "1280x720"', resolutionParser.bind(null, '--viewport-size'))
+      .option('--use-browserbase', 'create a Browserbase session and connect via CDP. Requires BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID environment variables.')
       .addOption(new ProgramOption('--connect-tool', 'Allow to switch between different browser connection methods.').hideHelp())
       .addOption(new ProgramOption('--vision', 'Legacy option, use --caps=vision instead').hideHelp())
       .action(async options => {
@@ -78,6 +79,14 @@ export function decorateCommand(command: Command, version: string) {
         if (options.vision) {
           console.error('The --vision option is deprecated, use --caps=vision instead');
           options.caps = 'vision';
+        }
+
+        // Handle Browserbase session setup
+        if (options.useBrowserbase) {
+          const cdpEndpoint = await setupBrowserbaseSession(options.secrets);
+          options.cdpEndpoint = cdpEndpoint;
+          // Force isolated mode when using Browserbase
+          options.isolated = true;
         }
 
         const config = await resolveCLIConfig(options);
@@ -144,5 +153,42 @@ function checkFfmpeg(): boolean {
     return fs.existsSync(executable.executablePath('javascript')!);
   } catch (error) {
     return false;
+  }
+}
+
+async function setupBrowserbaseSession(secrets?: Record<string, string>): Promise<string> {
+  // eslint-disable-next-line no-console
+  console.error('Setting up Browserbase session...');
+  
+  // First check secrets from --secrets option, then fall back to environment variables
+  const apiKey = secrets?.BROWSERBASE_API_KEY || process.env.BROWSERBASE_API_KEY;
+  const projectId = secrets?.BROWSERBASE_PROJECT_ID || process.env.BROWSERBASE_PROJECT_ID;
+  
+  if (!apiKey) {
+    throw new Error('BROWSERBASE_API_KEY is required when using --use-browserbase. Provide it via --secrets option or environment variable.');
+  }
+  
+  if (!projectId) {
+    throw new Error('BROWSERBASE_PROJECT_ID is required when using --use-browserbase. Provide it via --secrets option or environment variable.');
+  }
+
+  try {
+    // Dynamic import to avoid requiring browserbase when not using it
+    const BrowserbaseModule = await import('@browserbasehq/sdk');
+    const Browserbase = BrowserbaseModule.default || BrowserbaseModule;
+    const bb = new Browserbase({ apiKey });
+    
+    const proxies = true;
+    const session = await bb.sessions.create({ projectId, proxies });
+    // eslint-disable-next-line no-console
+    console.error(`Browserbase session created: ${session.id}`);
+    // eslint-disable-next-line no-console
+    console.error(`Connect URL: ${session.connectUrl}`);
+    // eslint-disable-next-line no-console
+    console.error(`Session replay: https://browserbase.com/sessions/${session.id}`);
+    
+    return session.connectUrl;
+  } catch (error: any) {
+    throw new Error(`Failed to create Browserbase session: ${error.message}`);
   }
 }

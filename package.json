@@ -53,6 +53,7 @@
     "packages/*"
   ],
   "devDependencies": {
+    "@browserbasehq/sdk": "^2.6.0",
     "@actions/core": "^1.10.0",
     "@actions/github": "^6.0.0",
     "@babel/code-frame": "^7.26.2",

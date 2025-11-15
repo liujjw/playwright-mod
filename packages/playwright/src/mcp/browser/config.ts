@@ -62,6 +62,7 @@ export type CLIOptions = {
   testIdAttribute?: string;
   timeoutAction?: number;
   timeoutNavigation?: number;
+  useBrowserbase?: boolean;
   userAgent?: string;
   userDataDir?: string;
   viewportSize?: ViewportSize;
